@@ -2,6 +2,9 @@
 node_modules/
 .aws-sam/
 
+# Local database (user data — do not commit)
+data/
+
 # Build artifacts
 dist/
 build/

@@ -8,187 +8,177 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
       --brand:#6366f1;--brand-dk:#4f46e5;--danger:#ef4444;--success:#22c55e;
-      --warn:#f59e0b;--bg:#f1f5f9;--surface:#fff;--border:#e2e8f0;
-      --text:#0f172a;--muted:#64748b;--r:.75rem;--sh:0 2px 16px rgba(0,0,0,.07);
+      --bg:#f1f5f9;--surface:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;
+      --r:.75rem;--sh:0 2px 16px rgba(0,0,0,.07);
     }
     body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:2rem 1rem 5rem}
-    .wrap{max-width:640px;margin:0 auto}
+    .wrap{max-width:620px;margin:0 auto}
 
-    /* ── Header ── */
+    /* Header */
     header{text-align:center;margin-bottom:1.75rem}
-    header h1{font-size:2.4rem;font-weight:900;letter-spacing:-.04em}
+    header h1{font-size:2.5rem;font-weight:900;letter-spacing:-.04em}
     header h1 span{color:var(--brand)}
     header p{color:var(--muted);margin-top:.25rem;font-size:.9rem}
-    .nav{display:flex;align-items:center;justify-content:flex-end;gap:.6rem;margin-bottom:1rem}
-    .nav-user{font-size:.85rem;color:var(--muted)}
-    .nav-user strong{color:var(--text)}
 
-    /* ── Auth panels ── */
-    .auth-wrap{max-width:420px;margin:2rem auto}
-    .auth-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:1.5rem}
-    .auth-tab{flex:1;text-align:center;padding:.65rem;font-weight:600;font-size:.9rem;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s}
-    .auth-tab.active{color:var(--brand);border-color:var(--brand)}
+    /* Nav bar */
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;padding:.6rem .875rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+    .topbar-user{font-size:.875rem;color:var(--muted)}
+    .topbar-user strong{color:var(--text);font-weight:700}
 
-    /* ── Cards ── */
+    /* Cards */
     .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:1.5rem;margin-bottom:1.25rem}
-    .card-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:1.1rem}
+    .card-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:1.1rem}
 
-    /* ── Forms ── */
-    .field{margin-bottom:.875rem}
+    /* Auth tabs */
+    .tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:1.5rem}
+    .tab{flex:1;text-align:center;padding:.65rem;font-weight:600;font-size:.9rem;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s}
+    .tab.on{color:var(--brand);border-color:var(--brand)}
+
+    /* Forms */
+    .field{margin-bottom:.9rem}
     label{display:block;font-size:.875rem;font-weight:600;margin-bottom:.3rem}
     label .opt{font-weight:400;color:var(--muted);font-size:.78rem}
     input[type=text],input[type=url],input[type=email],input[type=password],input[type=datetime-local]{
-      width:100%;padding:.6rem .875rem;border:1.5px solid var(--border);border-radius:.5rem;
-      font-size:.9375rem;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s
-    }
+      width:100%;padding:.625rem .875rem;border:1.5px solid var(--border);border-radius:.5rem;
+      font-size:.9375rem;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s}
     input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-    .err{color:var(--danger);font-size:.82rem;margin-top:.25rem;min-height:1rem}
+    .err{color:var(--danger);font-size:.82rem;margin-top:.3rem;min-height:1.1rem}
 
-    /* ── Buttons ── */
-    .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem 1.25rem;border:none;border-radius:.5rem;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap}
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.625rem 1.25rem;border:none;border-radius:.5rem;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap}
     .btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{background:var(--brand-dk)}
-    .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed}
     .btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--muted)}.btn-outline:hover{background:var(--bg);color:var(--text)}
-    .btn-danger{background:var(--danger);color:#fff}
-    .btn-google{background:#fff;border:1.5px solid var(--border);color:var(--text);font-weight:600;width:100%;justify-content:center;margin-bottom:.875rem}
-    .btn-google:hover{background:#f8fafc}
-    .btn-google svg{width:18px;height:18px;flex-shrink:0}
     .btn-full{width:100%;justify-content:center}
-    .divider{display:flex;align-items:center;gap:.75rem;margin:.75rem 0;color:var(--muted);font-size:.82rem}
-    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+    .btn-sm{padding:.4rem .85rem;font-size:.82rem}
 
-    /* ── Advanced toggle ── */
+    /* Advanced toggle */
     .adv-btn{background:none;border:none;color:var(--brand);font-size:.83rem;font-weight:600;cursor:pointer;padding:0;margin-bottom:.875rem}
     .adv-btn:hover{text-decoration:underline}
     .adv-fields{display:none}.adv-fields.open{display:block}
 
-    /* ── Result box ── */
+    /* Result box */
     .result-box{display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:var(--r);padding:1.25rem;margin-top:1rem}
-    .result-label{font-size:.72rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem}
-    .result-url-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+    .result-label{font-size:.72rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem}
+    .result-url-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem}
     .result-url-row a{font-size:1.05rem;font-weight:700;color:var(--brand);text-decoration:none;word-break:break-all;flex:1}
     .result-url-row a:hover{text-decoration:underline}
-    .copy-btn{background:none;border:1.5px solid var(--border);border-radius:.4rem;padding:.3rem .6rem;cursor:pointer;font-size:.82rem;color:var(--muted)}
+    .copy-btn{background:none;border:1.5px solid var(--border);border-radius:.4rem;padding:.3rem .6rem;cursor:pointer;font-size:.82rem;color:var(--muted);white-space:nowrap}
     .copy-btn:hover{background:var(--bg)}
-    .meta-row{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;font-size:.8rem;color:var(--muted)}
+    .meta-row{display:flex;flex-wrap:wrap;gap:.4rem 1.25rem;font-size:.8rem;color:var(--muted)}
     .meta-row strong{color:var(--text);font-weight:600}
 
-    /* ── Stats ── */
+    /* Stats */
     .stats-out{display:none;margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem}
     .chips{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
     .chip{background:var(--bg);border:1px solid var(--border);border-radius:.5rem;padding:.75rem 1rem;text-align:center;flex:1;min-width:80px}
     .chip .val{font-size:1.5rem;font-weight:800;color:var(--brand)}
     .chip .lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem}
-    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1.25rem}
-    .info-item .lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-    .info-item .val{font-weight:600;font-size:.85rem;margin-top:.1rem;word-break:break-all}
+    .igrid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1.25rem}
+    .iitem .lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    .iitem .val{font-weight:600;font-size:.85rem;margin-top:.1rem;word-break:break-all}
     .badge{display:inline-block;padding:.15rem .55rem;border-radius:9999px;font-size:.72rem;font-weight:700}
     .badge-active{background:#dcfce7;color:#15803d}.badge-expired{background:#fee2e2;color:#b91c1c}
 
-    /* ── URL list ── */
+    /* URL list */
     .url-item{display:flex;align-items:center;gap:.75rem;padding:.7rem 0;border-bottom:1px solid var(--border)}
     .url-item:last-child{border-bottom:none}
     .url-info{flex:1;min-width:0}
     .url-code{font-weight:700;color:var(--brand);font-size:.88rem}
     .url-code a{color:inherit;text-decoration:none}.url-code a:hover{text-decoration:underline}
     .url-long{font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .url-clicks{font-size:.78rem;color:var(--muted);white-space:nowrap}
-    .del-btn{background:none;border:none;cursor:pointer;font-size:1rem;padding:.2rem .4rem;border-radius:.3rem;opacity:.45}
+    .url-clicks{font-size:.78rem;color:var(--muted);white-space:nowrap;margin-right:.25rem}
+    .del-btn{background:none;border:none;cursor:pointer;font-size:1rem;padding:.2rem .4rem;border-radius:.3rem;opacity:.4}
     .del-btn:hover{opacity:1;background:#fee2e2}
     .empty{text-align:center;color:var(--muted);padding:1.5rem 0;font-size:.9rem}
 
-    /* ── Spinner ── */
-    .spin{width:1em;height:1em;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
-    .spin-dark{border-color:rgba(0,0,0,.15);border-top-color:var(--brand)}
-    @keyframes spin{to{transform:rotate(360deg)}}
+    /* Spinner */
+    .spin{width:1em;height:1em;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;display:inline-block;vertical-align:middle}
+    .spin-dark{border-color:rgba(0,0,0,.12);border-top-color:var(--brand)}
+    @keyframes sp{to{transform:rotate(360deg)}}
 
-    /* ── Toasts ── */
+    /* Toasts */
     #toasts{position:fixed;bottom:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:.5rem;z-index:9999}
-    .toast{padding:.7rem 1rem;border-radius:.5rem;font-size:.88rem;font-weight:600;color:#fff;max-width:320px;animation:slideIn .2s ease}
+    .toast{padding:.7rem 1.1rem;border-radius:.5rem;font-size:.88rem;font-weight:600;color:#fff;max-width:320px;animation:ti .2s ease;box-shadow:0 4px 12px rgba(0,0,0,.15)}
     .toast-success{background:var(--success)}.toast-error{background:var(--danger)}.toast-info{background:var(--brand)}
-    @keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+    @keyframes ti{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
 
-    @media(max-width:480px){.info-grid{grid-template-columns:1fr}.chips .chip .val{font-size:1.25rem}}
+    @media(max-width:480px){.igrid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
 <div class="wrap" id="app">
 
-  <!-- ═══ AUTH VIEW ═══ -->
+  <!-- ══════════ AUTH VIEW ══════════ -->
   <div id="authView">
     <header>
       <h1>Short<span>ly</span></h1>
       <p>Sign in to create and manage your short links</p>
     </header>
 
-    <div class="auth-wrap">
-      <div class="auth-tabs">
-        <div class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign in</div>
-        <div class="auth-tab" id="tabRegister" onclick="switchTab('register')">Create account</div>
-      </div>
+    <div style="max-width:420px;margin:0 auto">
+      <div class="card">
+        <div class="tabs">
+          <div class="tab on" id="tabLogin"    onclick="switchTab('login')">Sign in</div>
+          <div class="tab"    id="tabRegister" onclick="switchTab('register')">Create account</div>
+        </div>
 
-      <!-- Google sign-in -->
-      <button class="btn btn-google" onclick="googleLogin()">
-        <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.4 30.2 0 24 0 14.7 0 6.7 5.4 2.7 13.3l7.8 6.1C12.4 13.2 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 6.9-10 6.9-17z"/><path fill="#FBBC05" d="M10.5 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.1.8-4.6l-7.8-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l8-6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2.1 1.4-4.7 2.2-7.7 2.2-6.2 0-11.4-3.7-13.3-9l-8 6.1C6.6 42.6 14.7 48 24 48z"/></svg>
-        Continue with Google
-      </button>
+        <!-- LOGIN -->
+        <div id="loginPanel">
+          <div class="field">
+            <label for="liEmail">Email</label>
+            <input type="email" id="liEmail" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()"/>
+          </div>
+          <div class="field">
+            <label for="liPass">Password</label>
+            <input type="password" id="liPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+            <div class="err" id="liErr"></div>
+          </div>
+          <button class="btn btn-primary btn-full" id="liBtn" onclick="doLogin()">Sign in</button>
+        </div>
 
-      <div class="divider">or</div>
-
-      <!-- Login form -->
-      <div id="loginForm">
-        <div class="field">
-          <label for="loginEmail">Email</label>
-          <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email"/>
-          <div class="err" id="loginErr"></div>
+        <!-- REGISTER -->
+        <div id="regPanel" style="display:none">
+          <div class="field">
+            <label for="rgName">Full name</label>
+            <input type="text" id="rgName" placeholder="Jane Smith" autocomplete="name"/>
+          </div>
+          <div class="field">
+            <label for="rgEmail">Email</label>
+            <input type="email" id="rgEmail" placeholder="you@example.com" autocomplete="email"/>
+          </div>
+          <div class="field">
+            <label for="rgPass">Password <span class="opt">(min 6 chars)</span></label>
+            <input type="password" id="rgPass" placeholder="••••••••" autocomplete="new-password"/>
+          </div>
+          <div class="field">
+            <label for="rgPass2">Confirm password</label>
+            <input type="password" id="rgPass2" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"/>
+            <div class="err" id="rgErr"></div>
+          </div>
+          <button class="btn btn-primary btn-full" id="rgBtn" onclick="doRegister()">Create account</button>
         </div>
-        <div class="field">
-          <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"/>
-        </div>
-        <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign in</button>
-      </div>
-
-      <!-- Register form -->
-      <div id="registerForm" style="display:none">
-        <div class="field">
-          <label for="regName">Full name</label>
-          <input type="text" id="regName" placeholder="Jane Smith" autocomplete="name"/>
-        </div>
-        <div class="field">
-          <label for="regEmail">Email</label>
-          <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email"/>
-          <div class="err" id="regErr"></div>
-        </div>
-        <div class="field">
-          <label for="regPassword">Password <span class="opt">(min 6 chars)</span></label>
-          <input type="password" id="regPassword" placeholder="••••••••" autocomplete="new-password"/>
-        </div>
-        <div class="field">
-          <label for="regPassword2">Confirm password</label>
-          <input type="password" id="regPassword2" placeholder="••••••••" autocomplete="new-password"/>
-        </div>
-        <button class="btn btn-primary btn-full" id="regBtn" onclick="doRegister()">Create account</button>
       </div>
     </div>
   </div>
 
-  <!-- ═══ MAIN APP VIEW ═══ -->
+  <!-- ══════════ MAIN VIEW ══════════ -->
   <div id="mainView" style="display:none">
     <header>
       <h1>Short<span>ly</span></h1>
       <p>Fast, free URL shortening</p>
     </header>
 
-    <div class="nav">
-      <span class="nav-user">👤 <strong id="navName"></strong></span>
-      <button class="btn btn-outline" style="padding:.4rem .9rem;font-size:.82rem" onclick="doLogout()">Sign out</button>
+    <!-- Top bar -->
+    <div class="topbar">
+      <span class="topbar-user">👤 Signed in as <strong id="navName"></strong></span>
+      <button class="btn btn-outline btn-sm" onclick="doLogout()">Sign out</button>
     </div>
 
     <!-- Shorten card -->
     <div class="card">
       <div class="card-title">Shorten a URL</div>
-      <form id="shortenForm" novalidate onsubmit="doShorten(event)">
+      <form novalidate onsubmit="doShorten(event)">
         <div class="field">
           <label for="longUrl">Long URL</label>
           <input type="url" id="longUrl" placeholder="https://example.com/very/long/path" autocomplete="off" required/>
@@ -209,7 +199,7 @@
         <button type="submit" class="btn btn-primary" id="shortenBtn">Shorten URL</button>
       </form>
 
-      <!-- Result appears right here -->
+      <!-- Result appears right below the form -->
       <div class="result-box" id="resultBox">
         <div class="result-label">✓ Short link created</div>
         <div class="result-url-row">
@@ -217,10 +207,10 @@
           <button class="copy-btn" onclick="doCopy()">📋 Copy</button>
         </div>
         <div class="meta-row">
-          <span>Original: <strong id="metaLong">—</strong></span>
-          <span>Code: <strong id="metaCode">—</strong></span>
-          <span>Created: <strong id="metaCreated">—</strong></span>
-          <span>Expires: <strong id="metaExpires">Never</strong></span>
+          <span>Original: <strong id="mLong">—</strong></span>
+          <span>Code: <strong id="mCode">—</strong></span>
+          <span>Created: <strong id="mCreated">—</strong></span>
+          <span>Expires: <strong id="mExpires">Never</strong></span>
         </div>
       </div>
     </div>
@@ -230,8 +220,8 @@
       <div class="card-title">Stats lookup</div>
       <form novalidate onsubmit="doStats(event)">
         <div class="field">
-          <label for="statsInput">Short code or full short URL</label>
-          <input type="text" id="statsInput" placeholder="abc1234  or  http://localhost:3000/abc1234" autocomplete="off"/>
+          <label for="statsIn">Short code or full short URL</label>
+          <input type="text" id="statsIn" placeholder="abc1234  or  http://localhost:3000/abc1234" autocomplete="off"/>
         </div>
         <button type="submit" class="btn btn-primary" id="statsBtn">Get stats</button>
       </form>
@@ -241,11 +231,11 @@
           <div class="chip"><div class="val" id="sDays">—</div><div class="lbl">Days active</div></div>
           <div class="chip"><div id="sStatus">—</div><div class="lbl">Status</div></div>
         </div>
-        <div class="info-grid">
-          <div class="info-item"><div class="lbl">Long URL</div><div class="val" id="sLong">—</div></div>
-          <div class="info-item"><div class="lbl">Last accessed</div><div class="val" id="sLast">—</div></div>
-          <div class="info-item"><div class="lbl">Created</div><div class="val" id="sCreated">—</div></div>
-          <div class="info-item"><div class="lbl">Expires</div><div class="val" id="sExpires">Never</div></div>
+        <div class="igrid">
+          <div class="iitem"><div class="lbl">Long URL</div><div class="val" id="sLong">—</div></div>
+          <div class="iitem"><div class="lbl">Last accessed</div><div class="val" id="sLast">—</div></div>
+          <div class="iitem"><div class="lbl">Created</div><div class="val" id="sCreated">—</div></div>
+          <div class="iitem"><div class="lbl">Expires</div><div class="val" id="sExpires">Never</div></div>
         </div>
       </div>
     </div>
@@ -253,14 +243,13 @@
     <!-- My links card -->
     <div class="card">
       <div class="card-title">My links</div>
-      <button class="btn btn-outline" id="loadBtn" onclick="loadLinks(null)">Load my links</button>
-      <div id="linkList" style="margin-top:.75rem"></div>
-      <div id="pager" style="margin-top:.75rem"></div>
+      <button class="btn btn-outline" id="loadBtn" onclick="loadLinks(null)">↻ Refresh my links</button>
+      <div id="linkList" style="margin-top:.875rem"></div>
+      <div id="pager"    style="margin-top:.75rem"></div>
     </div>
   </div>
 
-</div><!-- /app -->
-
+</div>
 <div id="toasts"></div>
 <script src="app.js"></script>
 </body>

@@ -40,25 +40,27 @@ let store = loadStore();
 
 // ── URLs ─────────────────────────────────────────────────────────────────────
 function getUrl(shortCode) {
-  return store.urls[shortCode] || null;
+  return Promise.resolve(store.urls[shortCode] || null);
 }
 
 function putUrl(item) {
   if (store.urls[item.shortCode]) {
     const err = new Error('Condition failed');
     err.name = 'ConditionalCheckFailedException';
-    throw err;
+    return Promise.reject(err);
   }
   store.urls[item.shortCode] = item;
   saveStore(store);
+  return Promise.resolve();
 }
 
 function incrementClickCount(shortCode) {
   const item = store.urls[shortCode];
-  if (!item) return;
+  if (!item) return Promise.resolve();
   item.clickCount = (item.clickCount || 0) + 1;
   item.lastAccessedAt = new Date().toISOString();
   saveStore(store);
+  return Promise.resolve();
 }
 
 function deleteUrlDb(shortCode, ownerId) {
@@ -66,32 +68,31 @@ function deleteUrlDb(shortCode, ownerId) {
   if (!item) {
     const err = new Error('Not found');
     err.name = 'ConditionalCheckFailedException';
-    throw err;
+    return Promise.reject(err);
   }
   if (ownerId && item.ownerId !== ownerId) {
     const err = new Error('Not owner');
     err.name = 'ConditionalCheckFailedException';
-    throw err;
+    return Promise.reject(err);
   }
   delete store.urls[shortCode];
   saveStore(store);
+  return Promise.resolve();
 }
 
 function listUrls(ownerId, lastKey, limit = 50) {
   let items = Object.values(store.urls);
   if (ownerId) items = items.filter(i => i.ownerId === ownerId);
-  // Filter expired items
   const now = Math.floor(Date.now() / 1000);
   items = items.filter(i => !i.expiresAt || i.expiresAt > now);
-  // Sort newest first
   items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const start = lastKey ? items.findIndex(i => i.shortCode === lastKey) + 1 : 0;
   const page  = items.slice(start, start + limit);
-  return {
+  return Promise.resolve({
     items: page,
     lastKey: page.length === limit && start + limit < items.length
       ? page[page.length - 1].shortCode : undefined,
-  };
+  });
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────

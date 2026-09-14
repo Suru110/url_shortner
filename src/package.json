@@ -1,0 +1,11 @@
+{
+  "name": "url-shortener-src",
+  "version": "1.0.0",
+  "description": "Lambda function source — dependencies resolved from parent",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.637.0",
+    "@aws-sdk/lib-dynamodb": "3.637.0",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3"
+  }
+}

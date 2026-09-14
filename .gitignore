@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.aws-sam/
+
+# Build artifacts
+dist/
+build/
+
+# Environment — never commit real credentials
+.env
+.env.*
+env.local.json
+
+# SAM
+samconfig.toml.bak
+
+# Test output
+coverage/
+*.lcov
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

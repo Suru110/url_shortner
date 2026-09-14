@@ -1,0 +1,44 @@
+# SAM CLI configuration file
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-config.html
+
+version = 0.1
+
+# ---------------------------------------------------------------------------
+# Default (dev) environment
+# ---------------------------------------------------------------------------
+[default.global.parameters]
+stack_name = "url-shortener-dev"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities          = "CAPABILITY_IAM"
+confirm_changeset     = true
+resolve_s3            = true
+s3_prefix             = "url-shortener-dev"
+region                = "us-east-1"
+parameter_overrides   = "Environment=dev"
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+env_vars        = "env.local.json"
+
+# ---------------------------------------------------------------------------
+# Production environment  (sam deploy --config-env prod)
+# ---------------------------------------------------------------------------
+[prod.global.parameters]
+stack_name = "url-shortener-prod"
+
+[prod.build.parameters]
+cached   = true
+parallel = true
+
+[prod.deploy.parameters]
+capabilities        = "CAPABILITY_IAM"
+confirm_changeset   = true
+resolve_s3          = true
+s3_prefix           = "url-shortener-prod"
+region              = "us-east-1"
+parameter_overrides = "Environment=prod CorsOrigin=https://YOUR_CLOUDFRONT_DOMAIN"

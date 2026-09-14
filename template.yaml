@@ -1,0 +1,382 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Serverless URL Shortener
+  Lambda + API Gateway (HTTP API) + DynamoDB + S3/CloudFront frontend
+
+# ---------------------------------------------------------------------------
+# Parameters — override via samconfig.toml or --parameter-overrides
+# ---------------------------------------------------------------------------
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Deployment environment name
+
+  BaseUrl:
+    Type: String
+    Default: ""
+    Description: >
+      Public base URL for short links (e.g. https://short.example.com).
+      Leave blank to use the API Gateway URL auto-discovered at deploy time.
+
+  CorsOrigin:
+    Type: String
+    Default: "*"
+    Description: Allowed CORS origin(s) for API responses (use CloudFront URL in prod)
+
+  EnableCustomDomain:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Whether to configure a custom domain via Route 53 + ACM
+
+  CustomDomainName:
+    Type: String
+    Default: ""
+    Description: Custom domain name (required if EnableCustomDomain is true)
+
+  AcmCertificateArn:
+    Type: String
+    Default: ""
+    Description: ACM certificate ARN in us-east-1 (required for custom domain)
+
+# ---------------------------------------------------------------------------
+# Globals — applied to all Lambda functions
+# ---------------------------------------------------------------------------
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures: [x86_64]          # x86_64 for SAM Local compatibility
+    MemorySize: 256                  # Sweet spot for DynamoDB SDK + small cold starts
+    Timeout: 10
+    Environment:
+      Variables:
+        URLS_TABLE: !Ref UrlsTable
+        BASE_URL: !If
+          - HasBaseUrl
+          - !Ref BaseUrl
+          - !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+        CORS_ORIGIN: !Ref CorsOrigin
+        NODE_OPTIONS: "--enable-source-maps"
+        LOG_LEVEL: !If [IsProd, "WARN", "INFO"]
+    Tracing: Active                  # X-Ray tracing
+
+  Api:
+    TracingEnabled: true
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasBaseUrl: !Not [!Equals [!Ref BaseUrl, ""]]
+  IsProd: !Equals [!Ref Environment, "prod"]
+  UseCustomDomain: !Equals [!Ref EnableCustomDomain, "true"]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # ---- HTTP API Gateway ----------------------------------------------------
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      Description: URL Shortener HTTP API
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref CorsOrigin
+        AllowMethods: [GET, POST, DELETE, OPTIONS]
+        AllowHeaders: [Content-Type, Authorization, X-Api-Key, X-Owner-Id]
+        MaxAge: 300
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+      Tags:
+        Project: url-shortener
+        Environment: !Ref Environment
+
+  # ---- DynamoDB Table ------------------------------------------------------
+  UrlsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain           # Don't accidentally wipe data on stack delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "urls-${Environment}"
+      BillingMode: PAY_PER_REQUEST   # On-demand — stays in Free Tier for low traffic
+      TableClass: STANDARD
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - AttributeName: shortCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: shortCode
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt      # DynamoDB auto-deletes items when this epoch passes
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: url-shortener
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ---- Lambda Functions ----------------------------------------------------
+
+  ShortenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "url-shortener-shorten-${Environment}"
+      CodeUri: src/
+      Handler: handlers/shorten.handler
+      Description: POST /shorten — generate a short URL
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UrlsTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /shorten
+            Method: POST
+
+  RedirectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "url-shortener-redirect-${Environment}"
+      CodeUri: src/
+      Handler: handlers/redirect.handler
+      Description: GET /{shortCode} — redirect to the original URL
+      # Redirect is on the hot path — give it a bit more memory to reduce cold starts
+      MemorySize: 512
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt UrlsTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{shortCode}
+            Method: GET
+
+  StatsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "url-shortener-stats-${Environment}"
+      CodeUri: src/
+      Handler: handlers/stats.handler
+      Description: GET /stats/{shortCode} — return analytics
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UrlsTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /stats/{shortCode}
+            Method: GET
+
+  ListUrlsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "url-shortener-list-${Environment}"
+      CodeUri: src/
+      Handler: handlers/listUrls.handler
+      Description: GET /urls — list all URLs
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UrlsTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /urls
+            Method: GET
+
+  DeleteUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "url-shortener-delete-${Environment}"
+      CodeUri: src/
+      Handler: handlers/deleteUrl.handler
+      Description: DELETE /urls/{shortCode} — delete a short URL
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+              Resource: !GetAtt UrlsTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /urls/{shortCode}
+            Method: DELETE
+
+  # ---- Frontend: S3 + CloudFront ------------------------------------------
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "url-shortener-frontend-${Environment}-${AWS::AccountId}"
+      # Block all public access — CloudFront OAC will be used instead
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: url-shortener
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Origin Access Control (modern replacement for OAI)
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "url-shortener-oac-${Environment}"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "URL Shortener Frontend (${Environment})"
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100  # US, Canada, Europe — cheapest
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+        # SPA fallback — return index.html for any 403/404 from S3
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+        # Optional custom domain
+        Aliases: !If
+          - UseCustomDomain
+          - [!Ref CustomDomainName]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - UseCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+      Tags:
+        - Key: Project
+          Value: url-shortener
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ---- CloudWatch Log Groups (explicit, with retention) -------------------
+
+  ShortenLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/url-shortener-shorten-${Environment}"
+      RetentionInDays: !If [IsProd, 90, 14]
+
+  RedirectLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/url-shortener-redirect-${Environment}"
+      RetentionInDays: !If [IsProd, 90, 14]
+
+  StatsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/url-shortener-stats-${Environment}"
+      RetentionInDays: !If [IsProd, 90, 14]
+
+  ListUrlsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/url-shortener-list-${Environment}"
+      RetentionInDays: !If [IsProd, 90, 14]
+
+  DeleteUrlLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/url-shortener-delete-${Environment}"
+      RetentionInDays: !If [IsProd, 90, 14]
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  ApiEndpoint:
+    Description: HTTP API endpoint URL
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "url-shortener-api-${Environment}"
+
+  CloudFrontUrl:
+    Description: CloudFront distribution URL for the frontend
+    Value: !Sub "https://${CloudFrontDistribution.DomainName}"
+    Export:
+      Name: !Sub "url-shortener-frontend-${Environment}"
+
+  FrontendBucketName:
+    Description: S3 bucket name — upload frontend files here
+    Value: !Ref FrontendBucket
+    Export:
+      Name: !Sub "url-shortener-bucket-${Environment}"
+
+  DynamoDBTableName:
+    Description: DynamoDB table name
+    Value: !Ref UrlsTable
+    Export:
+      Name: !Sub "url-shortener-table-${Environment}"

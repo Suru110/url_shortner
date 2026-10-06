@@ -1,31 +1,28 @@
-# URL Shortener — Serverless on AWS
+# URL Shortener
 
-A fully serverless URL shortener built with AWS Lambda (Node.js 20), API Gateway HTTP API, DynamoDB, S3, and CloudFront, deployed via AWS SAM.
+A URL shortener with three deployment options: **AWS SAM** (Lambda + DynamoDB), **Vercel** (serverless functions + Upstash Redis), and **Render** (Node.js server + Upstash Redis).
 
 ---
 
 ## Architecture
 
 ```
-Browser / CLI
-     │
-     ▼
-CloudFront ──── S3 (frontend: index.html + app.js)
-     │
-     │ /shorten, /stats/*, /urls, /urls/*
-     ▼
-API Gateway (HTTP API)
-     │
-     ├── POST /shorten        → ShortenFunction
-     ├── GET  /{shortCode}    → RedirectFunction
-     ├── GET  /stats/{code}   → StatsFunction
-     ├── GET  /urls           → ListUrlsFunction
-     └── DELETE /urls/{code}  → DeleteUrlFunction
-                │
-                ▼
-           DynamoDB (urls-{env})
-           PK: shortCode
-           TTL: expiresAt
+Browser
+  │
+  ├─── Vercel deployment ──────────────────────────────────────────────
+  │      CloudFront/Edge  →  public/index.html + app.js (static)
+  │      Vercel Functions →  api/shorten.js, api/r/[code].js, etc.
+  │                          └── Upstash Redis (data store)
+  │
+  ├─── Render deployment ──────────────────────────────────────────────
+  │      Render Web Service  →  server.js (Node HTTP server)
+  │                             └── Upstash Redis (data store)
+  │      Frontend hosted on  →  Vercel / Netlify / any static host
+  │
+  └─── AWS SAM deployment ─────────────────────────────────────────────
+         CloudFront  →  S3 (frontend)
+         API Gateway →  Lambda functions
+                        └── DynamoDB
 ```
 
 ---
@@ -34,36 +31,166 @@ API Gateway (HTTP API)
 
 ```
 url-shortener/
-├── template.yaml           SAM infrastructure (Lambda, API GW, DynamoDB, S3, CloudFront)
-├── samconfig.toml          SAM deploy config for dev + prod environments
-├── package.json
-├── env.local.json          Local env vars for sam local (git-ignored)
-├── src/
+├── server.js               Node HTTP server (Render / local dev)
+├── render.yaml             Render Blueprint (one-click backend deploy)
+├── vercel.json             Vercel config (serverless functions + routing)
+├── template.yaml           AWS SAM infrastructure
+├── samconfig.toml          SAM deploy config (dev + prod)
+├── .env.example            Environment variable reference
+├── api/                    Vercel serverless functions
+│   ├── shorten.js          POST /api/shorten
+│   ├── urls.js             GET  /api/urls
+│   ├── r/[code].js         GET  /{shortCode}  → redirect
+│   ├── stats/[code].js     GET  /api/stats/:code
+│   ├── urls/[code].js      DELETE /api/urls/:code
+│   ├── auth/
+│   │   ├── login.js        POST /api/auth/login
+│   │   └── register.js     POST /api/auth/register
+│   └── _lib/               Shared helpers (store, auth, redis)
+├── src/                    Lambda handlers (AWS SAM)
 │   ├── handlers/
-│   │   ├── shorten.js      POST /shorten
-│   │   ├── redirect.js     GET /{shortCode}
-│   │   ├── stats.js        GET /stats/{shortCode}
-│   │   ├── listUrls.js     GET /urls
-│   │   └── deleteUrl.js    DELETE /urls/{shortCode}
 │   └── lib/
-│       ├── db.js           DynamoDB DocumentClient wrapper
-│       ├── generator.js    base62 short-code generator (CSPRNG)
-│       ├── response.js     HTTP response helpers + structured logger
-│       └── validator.js    URL validation + sanitisation
 ├── frontend/
 │   ├── index.html
 │   └── app.js
+├── scripts/
+│   ├── build-frontend.js   Copies frontend/ → public/ and injects API_BASE
+│   └── ...
 └── tests/
-    ├── generator.test.js
-    ├── validator.test.js
-    ├── shorten.test.js
-    ├── redirect.test.js
-    └── stats.test.js
 ```
 
 ---
 
-## Prerequisites
+## Quick start (local dev, no cloud needed)
+
+```bash
+npm install
+npm run dev          # starts server.js on http://localhost:3000
+```
+
+Data is stored in `data/db.json` — no Docker, no Redis, no AWS needed.
+
+---
+
+## Deploy to Vercel + Render (recommended)
+
+This is the simplest production setup:
+- **Render** hosts the backend API (`server.js`)
+- **Vercel** hosts the frontend + can also host the API as serverless functions
+
+### Prerequisites
+
+- [Upstash](https://upstash.com) account — free Redis database (data store for both platforms)
+- [Vercel](https://vercel.com) account
+- [Render](https://render.com) account
+- Repo pushed to GitHub or GitLab
+
+---
+
+### Option A — Vercel (frontend + API together, simplest)
+
+Everything runs on Vercel: the frontend is served as static files and the `api/` folder becomes serverless functions.
+
+#### 1. Get Upstash credentials
+
+1. Go to [console.upstash.com](https://console.upstash.com) → Create Database → pick a region → **REST API** tab
+2. Copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+
+#### 2. Deploy to Vercel
+
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+Or connect via the Vercel dashboard: **New Project → Import Git Repository**.
+
+#### 3. Set environment variables in Vercel
+
+In the Vercel dashboard → your project → **Settings → Environment Variables**, add:
+
+| Variable | Value |
+|---|---|
+| `UPSTASH_REDIS_REST_URL` | from Upstash console |
+| `UPSTASH_REDIS_REST_TOKEN` | from Upstash console |
+| `JWT_SECRET` | any long random string |
+| `BASE_URL` | `https://your-app.vercel.app` |
+
+#### 4. Redeploy
+
+After adding env vars, trigger a redeploy from the Vercel dashboard (or push a commit).
+
+Short links will look like: `https://your-app.vercel.app/abc1234`
+
+---
+
+### Option B — Render (backend) + Vercel (frontend)
+
+Use this if you want the backend on a persistent server instead of serverless functions.
+
+#### 1. Deploy the backend to Render
+
+**Via Blueprint (one-click):**
+
+1. Push this repo to GitHub/GitLab
+2. Render dashboard → **New → Blueprint** → connect your repo
+3. Render detects `render.yaml` and creates the `url-shortener-api` service
+4. In the Render dashboard, set the secret env vars:
+
+| Variable | Value |
+|---|---|
+| `JWT_SECRET` | any long random string |
+| `UPSTASH_REDIS_REST_URL` | from Upstash console |
+| `UPSTASH_REDIS_REST_TOKEN` | from Upstash console |
+
+**Via manual setup:**
+
+Render dashboard → **New → Web Service** → connect repo, then:
+
+| Setting | Value |
+|---|---|
+| Runtime | Node |
+| Build Command | `npm install && cd src && npm install && cd ..` |
+| Start Command | `node server.js` |
+| Health Check Path | `/api/health` |
+
+Add the same env vars as above, plus:
+
+| Variable | Value |
+|---|---|
+| `BASE_URL` | `https://url-shortener-api.onrender.com` |
+| `CORS_ORIGIN` | `https://your-app.vercel.app` |
+
+#### 2. Deploy the frontend to Vercel
+
+Once Render gives you a service URL (e.g. `https://url-shortener-api.onrender.com`):
+
+```bash
+# Set API_BASE so the frontend points at your Render backend
+$env:API_BASE = "https://url-shortener-api.onrender.com"
+node scripts/build-frontend.js    # creates public/ with correct config injected
+
+vercel --prod
+```
+
+Or set `API_BASE` as an environment variable in the Vercel dashboard and let Vercel run the build command (`node scripts/build-frontend.js`) automatically.
+
+#### 3. Tighten CORS on Render
+
+Once you know your Vercel frontend URL, update the `CORS_ORIGIN` env var on Render to that URL and redeploy.
+
+---
+
+### Option C — AWS SAM (Lambda + DynamoDB)
+
+See the [AWS SAM deployment section](#deploy-to-aws-sam) below for full instructions.
+
+---
+
+## Deploy to AWS SAM
+
+### Prerequisites
 
 | Tool | Version |
 |------|---------|
@@ -74,31 +201,14 @@ url-shortener/
 
 Install SAM CLI: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
 
----
-
-## Quick start
-
-### 1. Install dependencies
+### First deploy (guided)
 
 ```bash
 npm install
-```
-
-### 2. Run tests
-
-```bash
-npm test
-# with coverage
-npm run test:coverage
-```
-
-### 3. Deploy to AWS (guided first deploy)
-
-```bash
 sam build && sam deploy --guided
 ```
 
-SAM will walk you through stack name, region, and parameters. Afterwards these are saved to `samconfig.toml`.
+SAM walks you through stack name, region, and parameters, then saves them to `samconfig.toml`.
 
 Subsequent deploys:
 
@@ -107,9 +217,9 @@ npm run deploy:dev   # dev environment
 npm run deploy:prod  # prod environment
 ```
 
-### 4. Upload the frontend
+### Upload the frontend (SAM)
 
-After deploying, grab the S3 bucket name from the stack outputs:
+After deploying, grab outputs:
 
 ```bash
 aws cloudformation describe-stacks \
@@ -117,69 +227,56 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs"
 ```
 
-Then edit `frontend/app.js` — replace `YOUR_API_ID` with your actual API Gateway ID, then upload:
+Build and upload frontend pointing at the API Gateway URL:
 
 ```bash
-aws s3 sync frontend/ s3://YOUR_BUCKET_NAME/ --delete
+$env:API_BASE = "https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/dev"
+node scripts/build-frontend.js
+aws s3 sync public/ s3://YOUR_BUCKET_NAME/ --delete
+aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
 ```
-
-The CloudFront URL is printed in the stack outputs.
 
 ---
 
 ## Local development
 
-### Start DynamoDB Local
-
 ```bash
-docker run -p 8000:8000 amazon/dynamodb-local
+npm install
+npm run dev          # server.js on http://localhost:3000, uses data/db.json
 ```
 
-Create the local table (one-time):
+No Docker or cloud services needed locally. To test with Redis locally:
 
 ```bash
-aws dynamodb create-table \
-  --table-name urls-local \
-  --attribute-definitions AttributeName=shortCode,AttributeType=S \
-  --key-schema AttributeName=shortCode,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST \
-  --endpoint-url http://localhost:8000 \
-  --region us-east-1
+cp .env.example .env
+# Fill in UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+node server.js
 ```
 
-### Start SAM local API
+### Run tests
 
 ```bash
-npm run local:api
-# Equivalent: sam local start-api --env-vars env.local.json
-```
-
-The API is now at `http://localhost:3000`.
-
-### Test the API locally
-
-```bash
-# Shorten a URL
-curl -X POST http://localhost:3000/shorten \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com/some/long/path"}'
-
-# Redirect (follow the redirect)
-curl -L http://localhost:3000/ABC1234
-
-# Stats
-curl http://localhost:3000/stats/ABC1234
-
-# List all
-curl http://localhost:3000/urls
-
-# Delete
-curl -X DELETE http://localhost:3000/urls/ABC1234
+npm test
+npm run test:coverage
 ```
 
 ---
 
-## API reference
+## Environment variables
+
+See `.env.example` for the full reference. Key variables:
+
+| Variable | Required | Description |
+|---|---|---|
+| `JWT_SECRET` | Yes (prod) | Signs authentication tokens |
+| `UPSTASH_REDIS_REST_URL` | Yes (prod) | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | Yes (prod) | Upstash Redis auth token |
+| `BASE_URL` | Yes (prod) | Public URL for generated short links |
+| `CORS_ORIGIN` | No | Restrict API CORS (default `*`) |
+| `PORT` | No | Server port (default `3000`, Render uses `10000`) |
+| `API_BASE` | Build only | Frontend build: points app.js at backend URL |
+
+---
 
 ### POST /shorten
 
@@ -316,19 +413,7 @@ Returns **204 No Content** on success, **404** if not found.
 
 ---
 
-## Environment variables
-
-| Variable            | Description                              | Default                    |
-|---------------------|------------------------------------------|----------------------------|
-| `URLS_TABLE`        | DynamoDB table name                      | `urls`                     |
-| `BASE_URL`          | Public base URL for short links          | API Gateway URL            |
-| `CORS_ORIGIN`       | Allowed CORS origin                      | `*`                        |
-| `DYNAMODB_ENDPOINT` | Override DynamoDB endpoint (local dev)   | AWS default                |
-| `AWS_REGION`        | AWS region                               | `us-east-1`                |
-
----
-
-## Free Tier notes
+## Free Tier notes (AWS SAM)
 
 | Service       | Free Tier limit                       | Expected usage (demo)  |
 |---------------|---------------------------------------|------------------------|

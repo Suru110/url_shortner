@@ -19,11 +19,13 @@
     "local:api": "sam local start-api --env-vars env.local.json",
     "local:dynamodb": "docker run -p 8000:8000 amazon/dynamodb-local",
     "lint": "eslint src/ tests/",
-    "lint:fix": "eslint src/ tests/ --fix"
+    "lint:fix": "eslint src/ tests/ --fix",
+    "vercel-build": "node scripts/build-frontend.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "3.637.0",
     "@aws-sdk/lib-dynamodb": "3.637.0",
+    "@upstash/redis": "^1.38.4",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3"
   },

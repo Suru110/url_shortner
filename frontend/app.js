@@ -1,6 +1,9 @@
 'use strict';
 
-const API = 'http://localhost:3000';
+// API base URL — overridden at deploy time via window.APP_CONFIG (injected by the HTML)
+// Vercel: /api prefix (same origin, no CORS needed)
+// Render: full URL of your Render backend service
+const API = (window.APP_CONFIG && window.APP_CONFIG.apiBase) || '';
 
 // ── State (persisted in localStorage) ────────────────────────────────────────
 let TOKEN = localStorage.getItem('sl_token') || null;

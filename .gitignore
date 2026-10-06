@@ -8,6 +8,7 @@ data/
 # Build artifacts
 dist/
 build/
+public/
 
 # Environment — never commit real credentials
 .env

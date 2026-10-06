@@ -1,0 +1,56 @@
+## render.yaml — Render Blueprint
+## https://render.com/docs/blueprint-spec
+##
+## Deploys the URL Shortener backend (Node.js HTTP server) as a Render Web Service.
+## The frontend can be deployed separately to Vercel or any static host.
+##
+## Usage:
+##   1. Push this repo to GitHub / GitLab.
+##   2. In Render → New → Blueprint → connect your repo.
+##   3. Render picks up this file automatically.
+##   4. Set the secret env vars marked `sync: false` in the Render dashboard.
+
+services:
+  - type: web
+    name: url-shortener-api
+    runtime: node
+    region: oregon          # us-west-2 — change to: oregon | frankfurt | singapore | ohio
+    plan: free              # free | starter | standard | pro
+    branch: main
+
+    # Build step — install root deps, then src/ deps
+    buildCommand: npm install && cd src && npm install && cd ..
+
+    # Start the Node HTTP server (server.js)
+    startCommand: node server.js
+
+    # Health-check endpoint — Render pings this to confirm the service is up
+    healthCheckPath: /api/health
+
+    # Auto-deploy on every push to `branch`
+    autoDeploy: true
+
+    envVars:
+      # ── Required secrets — set these in the Render dashboard ──────────────
+      - key: JWT_SECRET
+        sync: false          # secret; enter value in Render dashboard
+
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false          # from https://console.upstash.com → your Redis database
+
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false          # from https://console.upstash.com → your Redis database
+
+      # ── Non-secret config — safe to commit ────────────────────────────────
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: "10000"       # Render assigns port 10000 by default for web services
+
+      - key: BASE_URL
+        value: https://url-shortener-api.onrender.com   # update after first deploy
+
+      - key: CORS_ORIGIN
+        value: "*"           # tighten to your frontend URL after deploy
+                             # e.g. https://your-app.vercel.app

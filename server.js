@@ -88,6 +88,12 @@ async function router(req, res) {
 
   if (method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
 
+  // ── Health check (used by Render and load balancers) ─────────────────────
+  if (method === 'GET' && path === '/api/health') {
+    send(res, 200, { status: 'ok', timestamp: new Date().toISOString() });
+    return;
+  }
+
   const rawBody = await readBody(req);
   let body = null;
   if (rawBody) { try { body = JSON.parse(rawBody); } catch { body = rawBody; } }

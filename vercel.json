@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "buildCommand": "node scripts/build-frontend.js",
+  "outputDirectory": "public",
+  "functions": {
+    "api/**/*.js": {
+      "memory": 256,
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    { "source": "/api/auth/login",      "destination": "/api/auth/login" },
+    { "source": "/api/auth/register",   "destination": "/api/auth/register" },
+    { "source": "/api/shorten",         "destination": "/api/shorten" },
+    { "source": "/api/stats/:code",     "destination": "/api/stats/[code]?code=:code" },
+    { "source": "/api/urls/:code",      "destination": "/api/urls/[code]?code=:code" },
+    { "source": "/api/urls",            "destination": "/api/urls" },
+    { "source": "/:code([a-zA-Z0-9_-]{3,64})", "destination": "/api/r/[code]?code=:code" },
+    { "source": "/(.*)",                "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin",  "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" }
+      ]
+    }
+  ]
+}

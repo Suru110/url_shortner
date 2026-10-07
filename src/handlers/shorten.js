@@ -79,7 +79,7 @@ exports.handler = async (event, context) => {
     try {
       await putUrl(item);
       log('INFO', 'custom alias created', { shortCode: alias }, context);
-      return created(buildResponse(alias, item));
+      return created(buildResponse(alias, item, event));
     } catch (err) {
       if (err.name === 'ConditionalCheckFailedException') {
         log('WARN', 'custom alias collision', { alias }, context);
@@ -99,7 +99,7 @@ exports.handler = async (event, context) => {
     try {
       await putUrl(item);
       log('INFO', 'short code created', { shortCode, attempt }, context);
-      return created(buildResponse(shortCode, item));
+      return created(buildResponse(shortCode, item, event));
     } catch (err) {
       if (err.name === 'ConditionalCheckFailedException') {
         log('WARN', 'short code collision, retrying', { shortCode, attempt }, context);
@@ -117,10 +117,35 @@ exports.handler = async (event, context) => {
 };
 
 /**
+ * Derive the public base URL for short links.
+ *
+ * Priority:
+ *  1. BASE_URL env var (set in production / Render / SAM)
+ *  2. The `host` header from the current request (works for localhost, LAN
+ *     IPs, ngrok tunnels, and any other hostname automatically)
+ *
+ * The `host` header is passed in via event.headers by server.js and API GW.
+ */
+function resolveBaseUrl(event) {
+  const envUrl = process.env.BASE_URL;
+  if (envUrl && envUrl !== '') return envUrl.replace(/\/$/, '');
+
+  // Derive from the incoming Host header
+  const host = (event.headers && (event.headers['x-forwarded-host'] || event.headers['host'])) || '';
+  if (host) {
+    // x-forwarded-proto tells us if the upstream is https (e.g. behind a proxy)
+    const proto = (event.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+    return `${proto}://${host}`;
+  }
+
+  return 'http://localhost:3000'; // last-resort fallback
+}
+
+/**
  * Build the success response body from the saved item.
  */
-function buildResponse(shortCode, item) {
-  const BASE_URL = process.env.BASE_URL || 'https://example.com';
+function buildResponse(shortCode, item, event) {
+  const BASE_URL = resolveBaseUrl(event);
   const response = {
     shortCode,
     shortUrl: `${BASE_URL}/${shortCode}`,

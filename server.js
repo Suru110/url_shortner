@@ -12,7 +12,10 @@ process.env.USERS_TABLE           = 'users-local';
 process.env.AWS_REGION            = 'us-east-1';
 process.env.AWS_ACCESS_KEY_ID     = 'AKIAIOSFODNN7EXAMPLE';
 process.env.AWS_SECRET_ACCESS_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
-process.env.BASE_URL              = process.env.BASE_URL  || 'http://localhost:3000';
+// BASE_URL is intentionally left unset here when not provided externally.
+// Each request derives the correct host dynamically (see buildEvent + shorten handler),
+// so short links work on localhost, LAN IPs, phones, and production domains alike.
+process.env.BASE_URL              = process.env.BASE_URL  || '';
 process.env.CORS_ORIGIN           = '*';
 process.env.JWT_SECRET            = process.env.JWT_SECRET || 'local-dev-secret-change-in-prod';
 
@@ -199,10 +202,21 @@ const server = http.createServer(async (req, res) => {
   console.log(`${req.method} ${req.url} → ${res.statusCode} (${Date.now() - t}ms)`);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   const dataFile = pathModule.join(__dirname, 'data', 'db.json');
+  // Resolve the machine's LAN IP so users know the address to share
+  const os      = require('os');
+  const lanIp   = Object.values(os.networkInterfaces())
+    .flat()
+    .find(n => n.family === 'IPv4' && !n.internal)?.address || 'localhost';
   console.log('\n╔══════════════════════════════════════════════════╗');
-  console.log(`║  URL Shortener  →  http://localhost:${PORT}          ║`);
+  console.log(`║  URL Shortener dev server                        ║`);
+  console.log('╠══════════════════════════════════════════════════╣');
+  console.log(`║  Local  →  http://localhost:${PORT}                  ║`);
+  console.log(`║  LAN    →  http://${lanIp}:${PORT}`.padEnd(51) +  '║');
+  console.log('╠══════════════════════════════════════════════════╣');
+  console.log('║  Short links auto-use the host the request came  ║');
+  console.log('║  from — no BASE_URL config needed.               ║');
   console.log('╠══════════════════════════════════════════════════╣');
   console.log('║  No Docker required — data stored in data/db.json║');
   console.log(`║  DB file: ${dataFile.slice(-40).padEnd(40)}║`);

@@ -5,9 +5,30 @@ const store   = require('./_lib/store');
 const auth    = require('./_lib/auth');
 const { created, badRequest, conflict, unauthorized, serverError, handleOptions } = require('./_lib/helpers');
 
-const BASE_URL = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : (process.env.BASE_URL || 'http://localhost:3000');
+/**
+ * Derive the public base URL for short links.
+ *
+ * Priority:
+ *  1. BASE_URL env var  — set this in Vercel / Render dashboard for production
+ *  2. VERCEL_URL        — auto-set by Vercel for preview deployments
+ *  3. x-forwarded-host  — real hostname when behind a proxy / Vercel edge
+ *  4. host header       — direct hostname (works on any device: LAN, phone, etc.)
+ *
+ * This means short links are always relative to wherever the request came from,
+ * so they work on localhost, LAN IPs, ngrok tunnels, and production domains
+ * without any configuration change.
+ */
+function resolveBaseUrl(req) {
+  if (process.env.BASE_URL && process.env.BASE_URL !== '') {
+    return process.env.BASE_URL.replace(/\/$/, '');
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  const host  = req.headers['x-forwarded-host'] || req.headers['host'] || '';
+  const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+  return host ? `${proto}://${host}` : 'http://localhost:3000';
+}
 
 module.exports = async (req, res) => {
   if (handleOptions(req, res)) return;
@@ -17,6 +38,7 @@ module.exports = async (req, res) => {
   let ownerId = null;
   try { ownerId = auth.requireAuth(req).userId; } catch { /* anonymous OK */ }
 
+  const BASE_URL = resolveBaseUrl(req);
   const { url, alias, expiresAt } = req.body || {};
 
   const urlResult = validateUrl(url);

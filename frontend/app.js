@@ -118,6 +118,7 @@ async function doShorten(e) {
   txt('urlErr', ''); txt('aliasErr', '');
 
   const longUrl   = g('longUrl').value.trim();
+  const linkName  = g('linkName').value.trim() || undefined;
   const alias     = g('alias').value.trim()    || undefined;
   const expiresAt = g('expiresAt').value        || undefined;
 
@@ -128,6 +129,7 @@ async function doShorten(e) {
 
   try {
     const body = { url: longUrl };
+    if (linkName)  body.name      = linkName;
     if (alias)     body.alias     = alias;
     if (expiresAt) body.expiresAt = new Date(expiresAt).toISOString();
 
@@ -144,6 +146,7 @@ async function doShorten(e) {
     const lnk = g('shortLink');
     lnk.href = lnk.textContent = data.shortUrl;
     txt('mLong',    trunc(data.longUrl, 55));
+    txt('mName',    data.name || '—');
     txt('mCode',    data.shortCode);
     txt('mCreated', fmtDate(data.createdAt));
     txt('mExpires', data.expiresAt ? fmtDate(data.expiresAt) : 'Never');
@@ -153,8 +156,9 @@ async function doShorten(e) {
     toast('Short link created!', 'success');
 
     // Reset form
-    g('longUrl').value = '';
-    if (alias)     g('alias').value    = '';
+    g('longUrl').value  = '';
+    g('linkName').value = '';
+    if (alias)     g('alias').value     = '';
     if (expiresAt) g('expiresAt').value = '';
     g('advFields').classList.remove('open');
     g('advBtn').textContent = '⚙ Advanced options';
@@ -242,6 +246,7 @@ async function loadLinks(cursor) {
         row.innerHTML = `
           <div class="url-info">
             <div class="url-code"><a href="/${esc(item.shortCode)}" target="_blank" rel="noopener">${esc(item.shortCode)}</a></div>
+            ${item.name ? `<div class="url-name" title="${esc(item.name)}">${esc(item.name)}</div>` : ''}
             <div class="url-long" title="${esc(item.longUrl)}">${esc(item.longUrl)}</div>
           </div>
           <div class="url-clicks">${item.clickCount || 0} clicks</div>

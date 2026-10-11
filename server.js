@@ -137,12 +137,16 @@ async function router(req, res) {
 
   // ── POST /shorten ─────────────────────────────────────────────────────────
   if (method === 'POST' && path === '/shorten') {
-    let ownerId = null;
-    try { ownerId = auth.requireAuth(req).userId; } catch { /* anonymous OK */ }
+    let ownerId;
+    try { ownerId = auth.requireAuth(req).userId; }
+    catch (e) { send(res, e.status || 401, { error: e.message }); return; }
     const event = buildEvent(req, rawBody, {});
-    if (ownerId && event.body) {
-      try { const b = JSON.parse(event.body); b.ownerId = ownerId; event.body = JSON.stringify(b); } catch { /* ignore */ }
-    }
+    // Always inject ownerId so every link is associated with its creator
+    try {
+      const b = JSON.parse(event.body || '{}');
+      b.ownerId = ownerId;
+      event.body = JSON.stringify(b);
+    } catch { /* body was not JSON — handler will reject it gracefully */ }
     try { sendLambda(res, await shortenH.handler(event, lambdaCtx)); }
     catch (e) { console.error('[shorten]', e); send(res, 500, { error: e.message }); }
     return;

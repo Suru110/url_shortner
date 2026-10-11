@@ -63,6 +63,33 @@ function incrementClickCount(shortCode) {
   return Promise.resolve();
 }
 
+function updateUrl(shortCode, ownerId, updates) {
+  const item = store.urls[shortCode];
+  if (!item) {
+    const err = new Error('Not found');
+    err.name = 'ConditionalCheckFailedException';
+    return Promise.reject(err);
+  }
+  if (ownerId && item.ownerId !== ownerId) {
+    const err = new Error('Not owner');
+    err.name = 'ConditionalCheckFailedException';
+    return Promise.reject(err);
+  }
+  // Only allow safe fields to be updated
+  const allowed = ['name'];
+  allowed.forEach(key => {
+    if (key in updates) {
+      if (updates[key] === null || updates[key] === '') {
+        delete item[key];
+      } else {
+        item[key] = updates[key];
+      }
+    }
+  });
+  saveStore(store);
+  return Promise.resolve(item);
+}
+
 function deleteUrlDb(shortCode, ownerId) {
   const item = store.urls[shortCode];
   if (!item) {
@@ -119,7 +146,7 @@ function updateUser(userId, updates) {
 module.exports = {
   // URL ops
   getUrl, putUrl, incrementClickCount,
-  deleteUrl: deleteUrlDb, listUrls,
+  deleteUrl: deleteUrlDb, updateUrl, listUrls,
   // User ops
   getUserById, getUserByEmail, putUser, updateUser,
   // For testing

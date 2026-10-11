@@ -36,7 +36,7 @@ exports.handler = async (event, context) => {
     return badRequest('Request body must be valid JSON');
   }
 
-  const { url, alias, expiresAt, ownerId } = body;
+  const { url, alias, expiresAt, ownerId, name } = body;
 
   // Validate the target URL
   const urlResult = validateUrl(url);
@@ -69,6 +69,7 @@ exports.handler = async (event, context) => {
     clickCount: 0,
     lastAccessedAt: null,
     isCustomAlias: useCustomAlias,
+    ...(name && typeof name === 'string' && name.trim() ? { name: name.trim() } : {}),
     ...(ownerId && { ownerId }),
     ...(expiryResult.timestamp && { expiresAt: expiryResult.timestamp }),
   };
@@ -152,6 +153,7 @@ function buildResponse(shortCode, item, event) {
     longUrl: item.longUrl,
     createdAt: item.createdAt,
     isCustomAlias: item.isCustomAlias,
+    ...(item.name && { name: item.name }),
   };
   if (item.expiresAt) {
     // Return ISO string to the client, not the raw epoch

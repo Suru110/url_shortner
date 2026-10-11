@@ -73,11 +73,12 @@ exports.handler = async (event, context) => {
  * Remove internal/sensitive fields from a URL record before returning it.
  */
 function sanitizeItem(item) {
-  const { shortCode, longUrl, createdAt, lastAccessedAt, clickCount, isCustomAlias, expiresAt } =
+  const { shortCode, longUrl, name, createdAt, lastAccessedAt, clickCount, isCustomAlias, expiresAt } =
     item;
   return {
     shortCode,
     longUrl,
+    ...(name && { name }),
     createdAt,
     lastAccessedAt: lastAccessedAt || null,
     clickCount: clickCount || 0,

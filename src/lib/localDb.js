@@ -14,8 +14,10 @@
 const fs   = require('fs');
 const path = require('path');
 
-const DATA_DIR  = path.join(__dirname, '..', '..', 'data');
-const DATA_FILE = path.join(DATA_DIR, 'db.json');
+// DB_FILE lets tests (or CI) point to a temp file so the real db.json is never touched.
+// Default: data/db.json next to the project root.
+const DATA_FILE = process.env.DB_FILE || path.join(__dirname, '..', '..', 'data', 'db.json');
+const DATA_DIR  = path.dirname(DATA_FILE);
 
 // ── Load or init store ───────────────────────────────────────────────────────
 function loadStore() {

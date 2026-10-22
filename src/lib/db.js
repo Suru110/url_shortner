@@ -1,20 +1,27 @@
 'use strict';
 
 /**
- * db.js — DynamoDB wrapper with automatic local fallback.
+ * db.js — unified DB selector.
  *
- * If USE_LOCAL_DB=true (set automatically by server.js in dev),
- * uses localDb.js (JSON file on disk) instead of DynamoDB.
- * This means NO Docker and NO AWS needed for local development.
+ * Priority order:
+ *  1. MongoDB Atlas  — when MONGODB_URI is set  (Render production — persistent)
+ *  2. Local JSON     — when USE_LOCAL_DB=true   (local dev, no cloud needed)
+ *  3. DynamoDB       — when running on AWS Lambda / SAM
  */
 
-// ── Local JSON store (dev) ────────────────────────────────────────────────────
+// ── 1. MongoDB Atlas ──────────────────────────────────────────────────────────
+if (process.env.MONGODB_URI) {
+  module.exports = require('./mongoStore');
+  return;
+}
+
+// ── 2. Local JSON file store ──────────────────────────────────────────────────
 if (process.env.USE_LOCAL_DB === 'true') {
   module.exports = require('./localDb');
   return;
 }
 
-// ── DynamoDB (production / SAM) ───────────────────────────────────────────────
+// ── 3. DynamoDB (AWS Lambda / SAM) ────────────────────────────────────────────
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
   DynamoDBDocumentClient,
@@ -25,10 +32,7 @@ const {
   ScanCommand,
 } = require('@aws-sdk/lib-dynamodb');
 
-const clientConfig = {
-  region: process.env.AWS_REGION || 'us-east-1',
-};
-
+const clientConfig = { region: process.env.AWS_REGION || 'us-east-1' };
 if (process.env.DYNAMODB_ENDPOINT) {
   clientConfig.endpoint    = process.env.DYNAMODB_ENDPOINT;
   clientConfig.credentials = {

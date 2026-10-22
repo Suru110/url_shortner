@@ -6,18 +6,20 @@ const pathModule = require('path');
 const urlModule  = require('url');
 
 // ── Must set env BEFORE loading any src module ────────────────────────────────
-process.env.USE_LOCAL_DB          = 'true';   // use JSON file, no Docker needed
-process.env.URLS_TABLE            = 'urls-local';
-process.env.USERS_TABLE           = 'users-local';
-process.env.AWS_REGION            = 'us-east-1';
-process.env.AWS_ACCESS_KEY_ID     = 'AKIAIOSFODNN7EXAMPLE';
-process.env.AWS_SECRET_ACCESS_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
-// BASE_URL is intentionally left unset here when not provided externally.
-// Each request derives the correct host dynamically (see buildEvent + shorten handler),
-// so short links work on localhost, LAN IPs, phones, and production domains alike.
-process.env.BASE_URL              = process.env.BASE_URL  || '';
-process.env.CORS_ORIGIN           = '*';
-process.env.JWT_SECRET            = process.env.JWT_SECRET || 'local-dev-secret-change-in-prod';
+// When MONGODB_URI is set (Render production), db.js routes to MongoDB Atlas.
+// Otherwise fall back to the local JSON file store for dev.
+if (!process.env.MONGODB_URI) {
+  process.env.USE_LOCAL_DB = 'true';
+}
+process.env.URLS_TABLE            = process.env.URLS_TABLE || 'urls-local';
+process.env.AWS_REGION            = process.env.AWS_REGION || 'us-east-1';
+process.env.AWS_ACCESS_KEY_ID     = process.env.AWS_ACCESS_KEY_ID     || 'AKIAIOSFODNN7EXAMPLE';
+process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+// BASE_URL: use env var on Render (https://url-shortner-98eu.onrender.com),
+// or auto-derive from the incoming request host in local dev.
+process.env.BASE_URL    = process.env.BASE_URL    || '';
+process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+process.env.JWT_SECRET  = process.env.JWT_SECRET  || 'local-dev-secret-change-in-prod';
 
 // ── Load handlers & auth ──────────────────────────────────────────────────────
 const shortenH   = require('./src/handlers/shorten');
@@ -30,8 +32,9 @@ const auth       = require('./src/lib/auth');
 const PORT = process.env.PORT || 3000;
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
+// Use the CORS_ORIGIN env var (set in render.yaml); defaults to * for local dev.
 const CORS = {
-  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Origin':  process.env.CORS_ORIGIN || '*',
   'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type,Authorization',
 };
@@ -124,6 +127,15 @@ async function router(req, res) {
     return;
   }
 
+  // ── Auth: reset-password ──────────────────────────────────────────────────
+  if (method === 'POST' && path === '/auth/reset-password') {
+    try {
+      const r = await auth.resetPassword(body || {});
+      send(res, 200, r);
+    } catch (e) { send(res, e.status || 500, { error: e.message }); }
+    return;
+  }
+
   // ── Auth: me ──────────────────────────────────────────────────────────────
   if (method === 'GET' && path === '/auth/me') {
     try {
@@ -137,16 +149,18 @@ async function router(req, res) {
 
   // ── POST /shorten ─────────────────────────────────────────────────────────
   if (method === 'POST' && path === '/shorten') {
-    let ownerId;
-    try { ownerId = auth.requireAuth(req).userId; }
-    catch (e) { send(res, e.status || 401, { error: e.message }); return; }
+    // Auth is OPTIONAL — anonymous users can shorten, logged-in users get ownership
+    let ownerId = null;
+    try { ownerId = auth.requireAuth(req).userId; } catch { /* anonymous OK */ }
     const event = buildEvent(req, rawBody, {});
-    // Always inject ownerId so every link is associated with its creator
-    try {
-      const b = JSON.parse(event.body || '{}');
-      b.ownerId = ownerId;
-      event.body = JSON.stringify(b);
-    } catch { /* body was not JSON — handler will reject it gracefully */ }
+    // Inject ownerId into body only when the user is logged in
+    if (ownerId) {
+      try {
+        const b = JSON.parse(event.body || '{}');
+        b.ownerId = ownerId;
+        event.body = JSON.stringify(b);
+      } catch { /* body was not JSON — handler will reject it */ }
+    }
     try { sendLambda(res, await shortenH.handler(event, lambdaCtx)); }
     catch (e) { console.error('[shorten]', e); send(res, 500, { error: e.message }); }
     return;

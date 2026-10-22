@@ -52,6 +52,23 @@ function requireAuth(req) {
   catch { throw { status: 401, message: 'Session expired — please sign in again' }; }
 }
 
+async function resetPassword({ email, newPassword }) {
+  if (!email || !newPassword)
+    throw { status: 400, message: 'Email and new password are required' };
+  if (newPassword.length < 6)
+    throw { status: 400, message: 'Password must be at least 6 characters' };
+
+  const emailNorm = email.toLowerCase().trim();
+  const user = await store.getUserByEmail(emailNorm);
+  if (!user)
+    throw { status: 404, message: 'No account found with that email address' };
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await store.updateUser(user.userId, { passwordHash });
+
+  return { token: signToken({ userId: user.userId, email: user.email, name: user.name }), user: safe({ ...user, passwordHash }) };
+}
+
 function safe(u) { const { passwordHash, ...s } = u; return s; }
 
-module.exports = { register, login, requireAuth, safe };
+module.exports = { register, login, resetPassword, requireAuth, safe };

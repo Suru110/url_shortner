@@ -1,8 +1,12 @@
 'use strict';
 
-// API base URL — overridden at deploy time via window.APP_CONFIG (injected by the HTML)
-// Vercel: /api prefix (same origin, no CORS needed)
-// Render: full URL of your Render backend service
+// API base URL.
+// When served by the Node server (local dev / Render), API stays '' so all
+// fetch() calls use relative URLs — they always point to the same host that
+// served the page, whether that's localhost, a LAN IP, or a production domain.
+// For Vercel (frontend + API on same origin) this is also correct.
+// Only set APP_CONFIG.apiBase when the frontend is hosted on a DIFFERENT origin
+// from the backend (e.g. static CDN → Render API).
 const API = (window.APP_CONFIG && window.APP_CONFIG.apiBase) || '';
 
 // ── State (persisted in localStorage) ────────────────────────────────────────
@@ -33,12 +37,13 @@ function showMain() {
 
 // ── Auth tab switching ────────────────────────────────────────────────────────
 function switchTab(tab) {
-  const isLogin = tab === 'login';
-  g('loginPanel').style.display  = isLogin ? '' : 'none';
-  g('regPanel').style.display    = isLogin ? 'none' : '';
-  g('tabLogin').classList.toggle('on', isLogin);
-  g('tabRegister').classList.toggle('on', !isLogin);
-  txt('liErr', ''); txt('rgErr', '');
+  g('loginPanel').style.display = tab === 'login'    ? '' : 'none';
+  g('regPanel').style.display   = tab === 'register' ? '' : 'none';
+  g('resetPanel').style.display = tab === 'reset'    ? '' : 'none';
+  g('tabLogin').classList.toggle('on',    tab === 'login');
+  g('tabRegister').classList.toggle('on', tab === 'register');
+  g('tabReset').classList.toggle('on',    tab === 'reset');
+  txt('liErr', ''); txt('rgErr', ''); txt('rstErr', '');
 }
 
 // ── Register ──────────────────────────────────────────────────────────────────
@@ -86,6 +91,30 @@ async function doLogin() {
     showMain();
   } catch { txt('liErr', 'Cannot connect — is the server running? (npm run dev)'); }
   finally   { setLoading(btn, false, 'Sign in'); }
+}
+
+// ── Reset password ────────────────────────────────────────────────────────────
+async function doReset() {
+  txt('rstErr', '');
+  const email = g('rstEmail').value.trim();
+  const pass  = g('rstPass').value;
+  const pass2 = g('rstPass2').value;
+
+  if (!email)         { txt('rstErr', 'Please enter your email'); return; }
+  if (!pass)          { txt('rstErr', 'Please enter a new password'); return; }
+  if (pass.length < 6){ txt('rstErr', 'Password must be at least 6 characters'); return; }
+  if (pass !== pass2) { txt('rstErr', 'Passwords do not match'); return; }
+
+  const btn = g('rstBtn');
+  setLoading(btn, true, 'Updating password…');
+  try {
+    const { ok, data } = await api('POST', '/auth/reset-password', { email, newPassword: pass });
+    if (!ok) { txt('rstErr', data.error || 'Could not reset password'); return; }
+    saveSession(data.token, data.user);
+    toast(`Password updated — welcome back, ${data.user.name}!`, 'success', 4000);
+    showMain();
+  } catch { txt('rstErr', 'Cannot connect — is the server running? (npm run dev)'); }
+  finally   { setLoading(btn, false, 'Set new password'); }
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
@@ -232,7 +261,15 @@ async function loadLinks(cursor) {
     const qs = cursor ? `?limit=50&cursor=${encodeURIComponent(cursor)}` : '?limit=50';
     const { ok, status, data } = await api('GET', `/urls${qs}`);
 
-    if (!ok) { toast(data?.error || `Error ${status}`, 'error'); return; }
+    if (!ok) {
+      // 401 is handled by api() — it will auto-logout, don't show a redundant error
+      if (status !== 401) {
+        const list = g('linkList');
+        if (!cursor) list.innerHTML = `<div class="empty" style="color:var(--danger)">Could not load links (${status}) — try refreshing</div>`;
+        toast(data?.error || `Error loading links (${status})`, 'error');
+      }
+      return;
+    }
 
     const list = g('linkList');
     if (!cursor) list.innerHTML = '';
@@ -267,8 +304,10 @@ async function loadLinks(cursor) {
       pager.appendChild(more);
     }
   } catch (err) {
-    console.error(err);
-    toast('Cannot connect — is the server running?', 'error');
+    console.error('[loadLinks]', err);
+    const list = g('linkList');
+    if (!cursor) list.innerHTML = '<div class="empty" style="color:var(--danger)">Cannot reach server — is it running?</div>';
+    toast('Cannot connect to server', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = '↻ Refresh my links';
@@ -298,6 +337,13 @@ async function api(method, path, body) {
   const text = await res.text();
   let data = null;
   try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+  // Auto-logout on 401 — token is expired or invalid, force re-login
+  if (res.status === 401 && TOKEN) {
+    doLogout();
+    toast('Your session expired — please sign in again', 'error', 5000);
+  }
+
   return { ok: res.ok, status: res.status, data };
 }
 

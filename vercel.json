@@ -9,8 +9,9 @@
     }
   },
   "rewrites": [
-    { "source": "/api/auth/login",      "destination": "/api/auth/login" },
-    { "source": "/api/auth/register",   "destination": "/api/auth/register" },
+    { "source": "/api/auth/login",           "destination": "/api/auth/login" },
+    { "source": "/api/auth/register",         "destination": "/api/auth/register" },
+    { "source": "/api/auth/reset-password",   "destination": "/api/auth/reset-password" },
     { "source": "/api/shorten",         "destination": "/api/shorten" },
     { "source": "/api/stats/:code",     "destination": "/api/stats/[code]?code=:code" },
     { "source": "/api/urls/:code",      "destination": "/api/urls/[code]?code=:code" },

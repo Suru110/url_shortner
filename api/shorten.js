@@ -19,15 +19,17 @@ const { created, badRequest, conflict, unauthorized, serverError, handleOptions 
  * without any configuration change.
  */
 function resolveBaseUrl(req) {
+  // BASE_URL env var always wins — set this on Render/Vercel to the public URL.
   if (process.env.BASE_URL && process.env.BASE_URL !== '') {
     return process.env.BASE_URL.replace(/\/$/, '');
   }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
+  // Fallback for local dev: derive from request headers.
   const host  = req.headers['x-forwarded-host'] || req.headers['host'] || '';
   const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-  return host ? `${proto}://${host}` : 'http://localhost:3000';
+  return host ? `${proto}://${host}` : 'https://url-shortner-98eu.onrender.com';
 }
 
 module.exports = async (req, res) => {

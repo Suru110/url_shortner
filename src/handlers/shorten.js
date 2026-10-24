@@ -128,18 +128,18 @@ exports.handler = async (event, context) => {
  * The `host` header is passed in via event.headers by server.js and API GW.
  */
 function resolveBaseUrl(event) {
+  // BASE_URL env var always wins — must be set on Render to the public URL.
   const envUrl = process.env.BASE_URL;
   if (envUrl && envUrl !== '') return envUrl.replace(/\/$/, '');
 
-  // Derive from the incoming Host header
-  const host = (event.headers && (event.headers['x-forwarded-host'] || event.headers['host'])) || '';
-  if (host) {
-    // x-forwarded-proto tells us if the upstream is https (e.g. behind a proxy)
-    const proto = (event.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
-    return `${proto}://${host}`;
-  }
+  // Fallback: derive from request headers (local dev / LAN).
+  // On Render behind a proxy, x-forwarded-host carries the public hostname.
+  const headers = event.headers || {};
+  const host    = headers['x-forwarded-host'] || headers['host'] || '';
+  const proto   = (headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+  if (host) return `${proto}://${host}`;
 
-  return 'http://localhost:3000'; // last-resort fallback
+  return 'https://url-shortner-98eu.onrender.com'; // last-resort fallback
 }
 
 /**

@@ -277,19 +277,34 @@ async function loadLinks(cursor) {
     if (!data.items?.length && !cursor) {
       list.innerHTML = '<div class="empty">No links yet — shorten one above!</div>';
     } else {
+      // Build the full short URL base — use the same origin the page was loaded from.
+      // On Render this is https://url-shortner-98eu.onrender.com
+      const baseUrl = window.location.origin;
       data.items.forEach(item => {
+        const shortUrl = `${baseUrl}/${esc(item.shortCode)}`;
         const row = document.createElement('div');
         row.className = 'url-item';
         row.innerHTML = `
           <div class="url-info">
-            <div class="url-code"><a href="/${esc(item.shortCode)}" target="_blank" rel="noopener">${esc(item.shortCode)}</a></div>
+            <div class="url-code">
+              <a href="${shortUrl}" target="_blank" rel="noopener">${shortUrl}</a>
+            </div>
             ${item.name ? `<div class="url-name" title="${esc(item.name)}">${esc(item.name)}</div>` : ''}
             <div class="url-long" title="${esc(item.longUrl)}">${esc(item.longUrl)}</div>
           </div>
           <div class="url-clicks">${item.clickCount || 0} clicks</div>
+          <button class="copy-link-btn" title="Copy link">📋</button>
           <button class="del-btn" title="Delete">🗑</button>
         `;
         row.querySelector('.del-btn').addEventListener('click', () => delLink(item.shortCode, row));
+        row.querySelector('.copy-link-btn').addEventListener('click', () => {
+          navigator.clipboard.writeText(shortUrl).catch(() => {
+            const i = document.createElement('input');
+            i.value = shortUrl; document.body.appendChild(i); i.select();
+            document.execCommand('copy'); i.remove();
+          });
+          toast('Link copied!', 'success', 2000);
+        });
         list.appendChild(row);
       });
     }
